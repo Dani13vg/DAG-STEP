@@ -63,7 +63,7 @@ def load_text_json(json_file, image_root, dataset_name=None, extra_annotation_ke
     from pycocotools.coco import COCO
 
     timer = Timer()
-    json_file = PathManager.get_local_path(json_file)
+    json_file = '/home/dvidal/DAG-STEP/datasets/hiertext/train_with_217866regex_filtered.json' #PathManager.get_local_path(json_file)
     with contextlib.redirect_stdout(io.StringIO()):
         coco_api = COCO(json_file)
     if timer.seconds() > 1:
@@ -191,6 +191,7 @@ Category ids in annotations are not in [1, #categories]! We'll apply a mapping f
                 obj["text"] = text
 
             obj["bbox_mode"] = BoxMode.XYWH_ABS
+            obj["regex"] = anno["regex"]
             if id_map:
                 obj["category_id"] = id_map[obj["category_id"]]
             objs.append(obj)
