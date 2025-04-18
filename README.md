@@ -1,6 +1,6 @@
 # STEP - Towards Structured Scene-Text Spotting
 
-This repository contains the code and data for the paper [STEP - Towards Structured Scene-Text Spotting](https://arxiv.org/abs/2309.02356)
+This repository contains the code and data for the modifications done to the [STEP repository](https://github.com/CVC-DAG/STEP) to perform Scene-Text Spotting using more complex and flexible regex representations that allow for easier regex prompting of the model and enhance the performance. To know more about STEP reed the following publication [STEP - Towards Structured Scene-Text Spotting](https://arxiv.org/abs/2309.02356)
 
 ![STEP](figures/STEP.png)
 
@@ -11,7 +11,7 @@ This repository contains the code and data for the paper [STEP - Towards Structu
 Use the following commands to clone and create the environment with conda:
 
 ```bash
-git clone https://github.com/CVC-DAG/STEP.git
+git clone https://github.com/CVC-DAG/DAG-STEP.git STEP
 cd STEP
 conda create -n STEP python=3.8 -y
 conda activate STEP
