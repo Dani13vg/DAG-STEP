@@ -10,13 +10,23 @@ With respect to the original code in [STEP repository](https://github.com/CVC-DA
 
 - **adet/data/dataset_mapper.py**: This file was modified to change the way queries are created and stored. Queries are already created and stored along with the rest of the data in the JSON files, so this file simply stores them as tensors of token IDs instead of multihot vectors.
 
-- **adet/data/datasets/text.py**: This file was modified in line 197 to add the storage of regexes since now the JSON files read have a new keyword 'regex'.
+- **adet/data/datasets/text.py**: Line 197 to add the storage of regexes since now the JSON files read have a new keyword 'regex'.
 
-- **adet/data/builtin.py**: This file was modified to change the paths of the train and validation data files.
+- **adet/data/builtin.py**: Change the paths of the train and validation data files.
 
-- **adet/data/modeling.py**: This file was modified to process the new query format and perform the correct padding in the `preprocess_queries` function.
+- **adet/data/modeling.py**: Process the new query format and perform the correct padding in the `preprocess_queries` function.
 
-- **adet/modeling/step/models.py**: This file was modified to change the model architecture by replacing the MLP encoder of the multihot vectors with the new Transformer encoder that receives the token ids of the regexes. The weights for the encoder are loaded in this file and the forward function is modified to deal with the new format of the data.
+- **adet/modeling/step/models.py**: Changes in the model architecture by replacing the MLP encoder of the multihot vectors with the new Transformer encoder that receives the token ids of the regexes. The weights for the encoder are loaded in this file and the forward function is modified to deal with the new format of the data.
+
+- **inference/demo.py**: The script now contains a list of regexes to test, which can be modified and written using regex syntax. You can run the script to test the model on a single image or a folder with images and the model will perform on each of the images with each of the regexes in the list. Results are stored in a given output directory and the weights of the models must be given as well.
+
+## New scripts
+
+The following scripts include new functions used by the modified ones or to create the data JSON files used for this experiment:
+
+- **adet/utils/tokenizer.py**: Contains the functions to load or train the tokenizer and the function to decode the tokens.
+
+- **reformat_data.py**: Used to create the regexes for the annotations of the previous dataset. The script uses LLM's from GROQ (an API Key is required and you can easily get one in [GROQ API KEYS](https://console.groq.com/keys)) to generate the 3 regexes for each string in the annotations and ensures no regex is repeated and they all compile and match the given string. Note that the models from GROQ have a request limitation of 1k requests per model. The script automatically changes between models when a model has reached ist limit and does simple augmentations to the regex to ensure diversity.
 
 ## Running the Code
 
