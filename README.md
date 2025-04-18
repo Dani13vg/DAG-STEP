@@ -1,6 +1,6 @@
 # STEP - Towards Structured Scene-Text Spotting
 
-This repository contains the code and data for the modifications done to the [STEP repository](https://github.com/CVC-DAG/STEP) to perform Scene-Text Spotting using more complex and flexible regex representations that allow for easier regex prompting of the model and enhance the performance. To know more about STEP reed the following publication [STEP - Towards Structured Scene-Text Spotting](https://arxiv.org/abs/2309.02356)
+This repository contains the code and data for the modifications done to the [STEP repository](https://github.com/CVC-DAG/STEP) to perform Scene-Text Spotting using more complex and flexible regex representations that allow for easier regex prompting of the model and enhance the performance. To know more about STEP, read the following publication [STEP - Towards Structured Scene-Text Spotting](https://arxiv.org/abs/2309.02356)
 
 ![STEP](figures/STEP.png)
 
@@ -117,61 +117,7 @@ python inference/test.py --config-file configs/STEP/hiertext/STEP_R_50_Polygon.y
 
 ## Create Your Own Queries
 
-
-You can build your own queries with the code found in the file ```adet/utils/queries.py```. 
-These queries are used in the inference files to find the target text in the image.
-This file contains several functions, but we will only need the ```generate_query``` function.
-This function has two arguments, ```types``` and ```mask_force```. ```types``` has to be a string.
-Each character of the string represents the type of the character that we want to match in each
-position. This is the list of character types that we can specify:
-
-* s: space(``[ ]`` in regex)
-* e: separator symbols
-* p: special characters
-* l: letters (``[A-Za-z]`` in regex)
-* n: numbers (``\d`` in regex)
-
-The ```queries.py``` file has the full list of characters for each character type. Besides targeting 
-these general character types, you can also use ```mask_force``` to force specific characters. If for 
-example you want the target string to start with the character 'a', the first char of ```types``` 
-will be 'a'. To indicate that you want to force that character at position 0, the first element of 
-```mask_force``` will be 1. The length of ```mask_force``` must be equal to the length of ```types```.
-The elements of ```mask_force``` will be 0 if you want to use the general character types. Here are
-some examples where we are using the general character types to match strings:
-
-* ```generate_query("nnnll", [0, 0, 0, 0, 0])```: matches any string with three numbers and two letters,
-the equivalent regex would be ```\b\d{3}[A-Za-z]{2}\b```.
-* ```generate_query("ensll", [0, 0, 0, 0, 0])```: matches any string starting with a "separator" character 
-  (characters ',', '-' or '_') a number, a space, and two letters. The equivalent regex would 
-  be ```\b[,-_]\d[ ][A-Za-z]{2}\b```.
-
-Here are some examples where we match specific characters at certain positions:
-
-* ```generate_query("nnnnnKG", [0, 0, 0, 0, 0, 1, 1])```: matches any string with five numbers 
-  and the letters "KG", the equivalent regex would be ```\b\d{5}KG\b```.
-* ```generate_query("nnKn", [0, 0, 1, 1])```: matches any string with two numbers and the letters
-  "Kn", the equivalent regex would be ```\b\d{2}Kn\b```. Notice how the letter 'n' can be used as a 
-  general character type for numbers, but in this case we're forcing the actual character 'n' in the
-  last position of the query.
-* ```generate_query("TARA", [1, 1, 1, 1])```: matches the exact word "TARA", the equivalent regex 
-  would be ```\bTARA\b```.
-
-If you use a character type that is not listed above, and the mask is set to 0 in that position,
-the code will raise an exception. For example, the query ```generate_query("nnnr", [0, 0, 0, 0])```
-is not valid because "r" is not a valid character type, and the mask is set to 0 in its position.
-
-We can also target multiple specific characters at a certain position, but requires a bit more work. 
-Let's say we want to encode the regex ```\b\d{2}[Kk][Nn]\b```, where the last two letters can be
-uppercase and lowercase. In this case we can add the two expression where we target both representations
-and clamp the result between 0 and 1:
-
-```python
-query1 = generate_query("nnkn", [0, 0, 1, 1])
-query2 = generate_query("nnKN", [0, 0, 1, 1])
-query = torch.clamp(query1 + query2, max=1)
-```
-
-These queries are given to the model. An example of their usage can be seen in the script
+You can define your own queries (regexes) . These queries are given to the model. An example of their usage can be seen in the script
 ``inference/demo.py``, line 90. You can run this script with:
 
 ```bash
