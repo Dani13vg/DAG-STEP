@@ -4,6 +4,20 @@ This repository contains the code and data for the modifications done to the [ST
 
 ![STEP](figures/STEP.png)
 
+## Changes
+
+With respect to the original code in [STEP repository](https://github.com/CVC-DAG/STEP), there are some changes in the following files:
+
+- **adet/data/dataset_mapper.py**: This file was modified to change the way queries are created and stored. Queries are already created and stored along with the rest of the data in the JSON files, so this file simply stores them as tensors of token IDs instead of multihot vectors.
+
+- **adet/data/datasets/text.py**: This file was modified in line 197 to add the storage of regexes since now the JSON files read have a new keyword 'regex'.
+
+- **adet/data/builtin.py**: This file was modified to change the paths of the train and validation data files.
+
+- **adet/data/modeling.py**: This file was modified to process the new query format and perform the correct padding in the `preprocess_queries` function.
+
+- **adet/modeling/step/models.py**: This file was modified to change the model architecture by replacing the MLP encoder of the multihot vectors with the new Transformer encoder that receives the token ids of the regexes. The weights for the encoder are loaded in this file and the forward function is modified to deal with the new format of the data.
+
 ## Running the Code
 
 ### Code and Environment Setup
