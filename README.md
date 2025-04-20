@@ -141,11 +141,10 @@ python inference/test.py --config-file configs/STEP/hiertext/STEP_R_50_Polygon.y
 
 ## Create Your Own Queries
 
-You can define your own queries (regexes) . These queries are given to the model. An example of their usage can be seen in the script
-``inference/demo.py``, line 90. You can run this script with:
+You can define your own queries (regexes) in the demo.py script using regex syntax. These queries are given to the model to perform over the given images. You can run this script with:
 
 ```bash
-python inference/demo.py --config-file configs/STEP/hiertext/STEP_R_50_Polygon.yaml --input <PATH_TO_THE_IMAGES> --opts MODEL.WEIGHTS ckp/STEPv1_final.pth MODEL.TRANSFORMER.INFERENCE_TH_TEST 0.3
+python inference/demo.py --config-file configs/STEP/hiertext/STEP_R_50_Polygon.yaml --input-folder DAG-STEP/datasets/hiertext/validation --output </path/to/outputs> --opts MODEL.WEIGHTS </path/to/model/model.pth> MODEL.TRANSFORMER.INFERENCE_TH_TEST 0.2
 ```
 
 You can save the result in a folder with the flag ```--output <OUTPUT_PATH>```.
