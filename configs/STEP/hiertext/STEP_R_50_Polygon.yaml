@@ -14,14 +14,16 @@ MODEL:
     NUM_QUERIES: 100
     ENC_N_POINTS: 4
     DEC_N_POINTS: 4
+    ENCODER_WEIGHTS: "ckp/regex_encoder_256_dim.pth" # Alternative: "ckp/regex_encoder_256_dim.pth"
+    ENCODER_DIM: 256 # Make sure to match this with the encoder weights
 SOLVER:
-  IMS_PER_BATCH: 1
-  BASE_LR: 1e-5
+  IMS_PER_BATCH: 2
+  BASE_LR: 1e-4
   LR_BACKBONE: 1e-6
   WARMUP_ITERS: 0
-  STEPS: (120000,200000)
-  MAX_ITER: 300000
+  STEPS: (60000,200000)
+  MAX_ITER: 600000
   CHECKPOINT_PERIOD: 25000
 TEST:
-  EVAL_PERIOD: 1000
+  EVAL_PERIOD: 15000
 OUTPUT_DIR: "output/TESTR/HierText/STEP_50_Polygon"
