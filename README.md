@@ -127,6 +127,8 @@ in the ``ckp`` folder):
 python tools/train_net.py --config-file configs/STEP/hiertext/STEP_R_50_Polygon.yaml --num-gpus 2
 ```
 
+You can check the configs/STEP/hiertext/STEP_R_50_Polygon.yaml file to modify some hyperparameters of the model and change the weights of the `Regex Encoder`, or leave an empty string if you don't want to use pretrained weights.
+
 To run the validation script:
 
 ```bash
