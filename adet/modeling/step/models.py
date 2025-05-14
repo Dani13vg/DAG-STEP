@@ -10,10 +10,9 @@ from adet.utils.misc import NestedTensor, inverse_sigmoid_offset, nested_tensor_
 from adet.utils.queries import max_query_types
 from adet.utils.tokenizer import train_tokenizer
 import math
-import pdb
 
 # Tokenizer path
-tokenizer_path = "/home/dvidal/STEP/Tokenizers/1.6M_L10_tokenizer.json"
+tokenizer_path = "tokenizers/default_tokenizer.json"
 
 # -------------------------------------------------------------------------
 # Positional Encoding
@@ -54,7 +53,7 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 # -------------------------------------------------------------------------
-# Regex Encoder (without classification)
+# Regex Encoder
 # -------------------------------------------------------------------------
 class RegexEncoder(nn.Module):
     """
@@ -128,8 +127,6 @@ class STEP(nn.Module):
         self.voc_size                = cfg.MODEL.TRANSFORMER.VOC_SIZE
         self.sigmoid_offset          = not cfg.MODEL.TRANSFORMER.USE_POLYGON
 
-        # self.encoder_weights = cfg.MODEL.ENCODER_WEIGHTS if cfg.MODEL.ENCODER_WEIGHTS else None
-
         self.text_pos_embed = PositionalEncoding1D(self.d_model, normalize=True, scale=self.pos_embed_scale)
         self.query_pos_embed = PositionalEncoding1D(self.d_model, normalize=True, scale=self.pos_embed_scale)
         # fmt: on
@@ -150,7 +147,7 @@ class STEP(nn.Module):
         # self.query_embed = MLP(max_query_types(), self.d_model, self.d_model, 2)
 
         # Regex layers
-        self.tokenizer = train_tokenizer(content=None, save_path=tokenizer_path)
+        self.tokenizer = train_tokenizer(content=None, save_path=tokenizer_path) # Just loads the tokenizer if given a path
         self.encoder_dim = 256
         self.query_embed = RegexEncoder(input_dim=self.tokenizer.get_vocab_size(), d_model=self.encoder_dim, nhead=8,
                                         num_layers=4, dropout=0.4)#.to(self.device)
@@ -158,7 +155,7 @@ class STEP(nn.Module):
         # Load pre-trained weights for the regex encoder
         # encoder_weights_path = '/home/dvidal/STEP/Checkpoints/1.6M_L10_AdamW_encoder_only_best_model_96_lr_0.0001_20241108-205130.pth' # wieghts with 512 dim
         encoder_weights_path = '/home/dvidal/STEP/Checkpoints/1.6M_L10_AdamW_encoder_only_best_model_94_lr_0.0001_20250223-020448.pth'# weights with 256 dim
-        self.query_embed.load_state_dict(torch.load(encoder_weights_path), strict=False)
+        self.query_embed.load_state_dict(torch.load(encoder_weights_path), strict=False) # Loads only the weights that are compatible with the architecture, since the pretrained weights contain an extra layer for classification and here we don't need it
         print("Regex encoder loaded without pretrained weights")
 
         # Define a linear layer to project the regex encoder output to the transformer input size [from 512 to 256]
@@ -283,9 +280,6 @@ class STEP(nn.Module):
         
         text_pos_embed = self.text_pos_embed(self.text_embed.weight)[None, ...].repeat(self.num_proposals, 1, 1)
         text_embed = self.text_embed.weight[None, ...].repeat(self.num_proposals, 1, 1)
-
-        # embed queries
-        # pdb.set_trace()
 
         # Reshape input to be [seq_len, batch_size]
         # x[1] = x[1].squeeze(0).transpose(0, 1)
