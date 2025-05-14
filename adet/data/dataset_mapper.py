@@ -30,7 +30,7 @@ __all__ = ["DatasetMapperWithBasis"]
 
 logger = logging.getLogger(__name__)
 
-tokenizer_path = "Tokenizers/default_tokenizer.json"
+tokenizer_path = "tokenizers/default_tokenizer.json"
 
 def segmToRLE(segm, img_size):
     h, w = img_size
