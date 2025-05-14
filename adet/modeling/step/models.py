@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+import os
+import math
 from torch import nn
 import torch.nn.functional as F
 
@@ -9,7 +11,7 @@ from adet.layers.pos_encoding import PositionalEncoding1D
 from adet.utils.misc import NestedTensor, inverse_sigmoid_offset, nested_tensor_from_tensor_list, sigmoid_offset
 from adet.utils.queries import max_query_types
 from adet.utils.tokenizer import train_tokenizer
-import math
+
 
 # Tokenizer path
 tokenizer_path = "tokenizers/default_tokenizer.json"
@@ -126,6 +128,7 @@ class STEP(nn.Module):
         self.max_text_len            = cfg.MODEL.TRANSFORMER.NUM_CHARS
         self.voc_size                = cfg.MODEL.TRANSFORMER.VOC_SIZE
         self.sigmoid_offset          = not cfg.MODEL.TRANSFORMER.USE_POLYGON
+        self.encoder_weights_path    = cfg.MODEL.TRANSFORMER.ENCODER_WEIGHTS
 
         self.text_pos_embed = PositionalEncoding1D(self.d_model, normalize=True, scale=self.pos_embed_scale)
         self.query_pos_embed = PositionalEncoding1D(self.d_model, normalize=True, scale=self.pos_embed_scale)
@@ -148,24 +151,23 @@ class STEP(nn.Module):
 
         # Regex layers
         self.tokenizer = train_tokenizer(content=None, save_path=tokenizer_path) # Just loads the tokenizer if given a path
-        self.encoder_dim = 256
+        self.encoder_dim = 512
         self.query_embed = RegexEncoder(input_dim=self.tokenizer.get_vocab_size(), d_model=self.encoder_dim, nhead=8,
                                         num_layers=4, dropout=0.4)#.to(self.device)
 
         # Load pre-trained weights for the regex encoder
-        # encoder_weights_path = '/home/dvidal/STEP/Checkpoints/1.6M_L10_AdamW_encoder_only_best_model_96_lr_0.0001_20241108-205130.pth' # wieghts with 512 dim
-        encoder_weights_path = '/home/dvidal/STEP/Checkpoints/1.6M_L10_AdamW_encoder_only_best_model_94_lr_0.0001_20250223-020448.pth'# weights with 256 dim
-        self.query_embed.load_state_dict(torch.load(encoder_weights_path), strict=False) # Loads only the weights that are compatible with the architecture, since the pretrained weights contain an extra layer for classification and here we don't need it
-        print("Regex encoder loaded without pretrained weights")
+        if self.encoder_weights_path:
+            if not os.path.exists(self.encoder_weights_path):
+                raise FileNotFoundError(f"Encoder weights file not found at: {self.encoder_weights_path}")
+            encoder_state_dict = torch.load(self.encoder_weights_path, map_location=self.device)
+            self.query_embed.load_state_dict(encoder_state_dict, strict=False)
+            print(f"Regex encoder loaded from pretrained weights: {self.encoder_weights_path}")
+        else:
+            print("No encoder weights provided, using randomly initialized Regex encoder.")
 
         # Define a linear layer to project the regex encoder output to the transformer input size [from 512 to 256]
         if self.encoder_dim != self.d_model:
-            self.query_reprojection = nn.Linear(512, self.d_model)
-
-        # if self.encoder_weights:
-        #     self.query_embed.load_state_dict(torch.load(self.encoder_weights))
-
-        #self.query_reprojection = nn.Linear(self.d_model, self.d_model)
+            self.query_reprojection = nn.Linear(self.encoder_dim, self.d_model)
 
         # shared prior between instances (objects)
         self.ctrl_point_embed = nn.Embedding(self.num_ctrl_points, self.d_model)
@@ -291,7 +293,7 @@ class STEP(nn.Module):
             queries = self.query_reprojection(queries)
         queries = queries.transpose(0, 1)
         queries = queries.unsqueeze(1).repeat(1, self.num_proposals, 1, 1)
-        query_pos_embed = None #self.query_pos_embed(queries[0, 0]).unsqueeze(0).repeat(queries.shape[0], self.num_proposals, 1, 1)
+        query_pos_embed = None #self.query_pos_embed(queries[0, 0]).unsqueeze(0).repeat(queries.shape[0], self.num_proposals, 1, 1) # This may be not needed because we are using the regex encoder with positional encoding
 
         hs, hs_text, init_reference, inter_references, enc_outputs_class, enc_outputs_coord_unact = self.transformer(
             srcs, masks, pos, ctrl_point_embed, text_embed, text_pos_embed, queries, query_pos_embed, text_mask=None)
