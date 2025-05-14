@@ -21,7 +21,6 @@ from collections import OrderedDict
 from typing import Any, Dict, List, Set
 import torch
 import itertools
-from torch.nn.parallel import DistributedDataParallel
 
 import detectron2.utils.comm as comm
 from detectron2.data import MetadataCatalog, build_detection_train_loader, build_detection_test_loader
