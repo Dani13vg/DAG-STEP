@@ -151,7 +151,8 @@ class STEP(nn.Module):
 
         # Regex layers
         self.tokenizer = train_tokenizer(content=None, save_path=tokenizer_path) # Just loads the tokenizer if given a path
-        self.encoder_dim = 512
+        self.encoder_dim = cfg.MODEL.TRANSFORMER.ENCODER_DIM
+        
         self.query_embed = RegexEncoder(input_dim=self.tokenizer.get_vocab_size(), d_model=self.encoder_dim, nhead=8,
                                         num_layers=4, dropout=0.4)#.to(self.device)
 
