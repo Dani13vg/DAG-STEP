@@ -40,7 +40,7 @@ from detectron2.solver.build import maybe_add_gradient_clipping
 from detectron2.modeling import GeneralizedRCNNWithTTA
 from detectron2.utils.logger import setup_logger
 
-from adet.data.dataset_mapper_2 import DatasetMapperWithBasis
+from adet.data.dataset_mapper import DatasetMapperWithBasis
 from adet.config import get_cfg
 from adet.checkpoint import AdetCheckpointer
 from adet.evaluation import TextEvaluator
