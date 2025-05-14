@@ -14,7 +14,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.nn.init import normal_
-from torch.nn.modules.container import T
 
 from .ms_deform_attn import MSDeformAttn
 
