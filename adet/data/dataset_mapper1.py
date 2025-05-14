@@ -30,7 +30,7 @@ __all__ = ["DatasetMapperWithBasis"]
 
 logger = logging.getLogger(__name__)
 
-tokenizer_path = "/home/dvidal/STEP/Tokenizers/1.6M_L10_tokenizer.json"
+tokenizer_path = "Tokenizers/default_tokenizer.json"
 
 def segmToRLE(segm, img_size):
     h, w = img_size
@@ -173,7 +173,6 @@ class DatasetMapperWithBasis(DatasetMapper):
 
             regex = random.choice(target["regex"]) # We select a random regex from the list
             target_query = self.tokenizer.encode(regex).ids
-            print(f"Target query: {target_query} for regex: {regex}")
 
             accepted = []
 
