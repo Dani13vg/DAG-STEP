@@ -8,8 +8,79 @@ from adet.layers.deformable_transformer import DeformableTransformer
 from adet.layers.pos_encoding import PositionalEncoding1D
 from adet.utils.misc import NestedTensor, inverse_sigmoid_offset, nested_tensor_from_tensor_list, sigmoid_offset
 from adet.utils.queries import max_query_types
+from adet.utils.tokenizer import train_tokenizer
+import math
+import pdb
 
+# Tokenizer path
+tokenizer_path = "/home/dvidal/STEP/Tokenizers/1.6M_L10_tokenizer.json"
 
+# -------------------------------------------------------------------------
+# Positional Encoding
+# -------------------------------------------------------------------------
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)  # [max_len, 1]
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
+        )  # [d_model/2]
+        pe = torch.zeros(max_len, 1, d_model)  # [max_len, 1, d_model]
+        pe[:, 0, 0::2] = torch.sin(position * div_term)  # sin to even indices
+        pe[:, 0, 1::2] = torch.cos(position * div_term)  # cos to odd indices
+        self.register_buffer("pe", pe)
+
+    def forward(self, x):
+        """
+        x: Tensor, shape [seq_len, batch_size, d_model] OR [batch_size, seq_len, d_model].
+           We will add the positional encodings to the first dimension if x is [seq_len, batch_size, d_model].
+        """
+        # print("x shape:", x.shape) # [seq_len, batch_size, d_model]
+        # print("Expected shape:", self.pe.size()) # [max_len, 1, d_model] max_len = 5000
+        if x.dim() == 3 and x.size(0) <= self.pe.size(0):
+            # shape [seq_len, batch_size, d_model]
+            x = x + self.pe[: x.size(0)]
+        elif x.dim() == 3 and x.size(1) <= self.pe.size(0):
+            # shape [batch_size, seq_len, d_model], we might want to transpose first
+            # or simply apply the position along dim=1. Let's do an example approach:
+            # If you prefer [batch_size, seq_len, d_model], you can transpose first, apply, transpose back
+            x = x.transpose(0, 1)  # => [seq_len, batch_size, d_model]
+            x = x + self.pe[: x.size(0)]
+            x = x.transpose(0, 1)  # => [batch_size, seq_len, d_model]
+        else:
+            raise ValueError("Positional encoding: input is too large or shape not supported.")
+        return self.dropout(x)
+
+# -------------------------------------------------------------------------
+# Regex Encoder (without classification)
+# -------------------------------------------------------------------------
+class RegexEncoder(nn.Module):
+    """
+    Encodes a sequence of regex tokens using a Transformer encoder,
+    returning shape [seq_len, batch_size, d_model].
+    """
+    def __init__(self, input_dim, d_model=256, nhead=8, num_layers=4, dropout=0.5):
+        super(RegexEncoder, self).__init__()
+        self.embedding = nn.Embedding(input_dim, d_model, padding_idx=1)
+        self.pos_encoder = PositionalEncoding(d_model, dropout=0.0)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dropout=dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.d_model = d_model
+
+    def forward(self, src):
+        """
+        src: [regex_seq_len, batch_size] -- typically you might pass it transposed.
+        returns: [regex_seq_len, batch_size, d_model]
+        """
+        # If src is [batch_size, seq_len], you may need to transpose to [seq_len, batch_size].
+        # Let's assume the caller ensures shape [seq_len, batch_size].
+        embedded = self.embedding(src) * math.sqrt(self.d_model)  # [seq_len, batch_size, d_model]
+        embedded = self.pos_encoder(embedded)                     # add positional encoding
+        output = self.transformer_encoder(embedded)               # [seq_len, batch_size, d_model]
+        return output
+    
 class MLP(nn.Module):
     """ Very simple multi-layer perceptron (also called FFN)"""
 
@@ -57,6 +128,8 @@ class STEP(nn.Module):
         self.voc_size                = cfg.MODEL.TRANSFORMER.VOC_SIZE
         self.sigmoid_offset          = not cfg.MODEL.TRANSFORMER.USE_POLYGON
 
+        # self.encoder_weights = cfg.MODEL.ENCODER_WEIGHTS if cfg.MODEL.ENCODER_WEIGHTS else None
+
         self.text_pos_embed = PositionalEncoding1D(self.d_model, normalize=True, scale=self.pos_embed_scale)
         self.query_pos_embed = PositionalEncoding1D(self.d_model, normalize=True, scale=self.pos_embed_scale)
         # fmt: on
@@ -74,7 +147,28 @@ class STEP(nn.Module):
         self.bbox_coord = MLP(self.d_model, self.d_model, 4, 3)
         self.bbox_class = nn.Linear(self.d_model, self.num_classes)
         self.text_class = nn.Linear(self.d_model, self.voc_size + 1)
-        self.query_embed = MLP(max_query_types(), self.d_model, self.d_model, 2)
+        # self.query_embed = MLP(max_query_types(), self.d_model, self.d_model, 2)
+
+        # Regex layers
+        self.tokenizer = train_tokenizer(content=None, save_path=tokenizer_path)
+        self.encoder_dim = 256
+        self.query_embed = RegexEncoder(input_dim=self.tokenizer.get_vocab_size(), d_model=self.encoder_dim, nhead=8,
+                                        num_layers=4, dropout=0.4)#.to(self.device)
+
+        # Load pre-trained weights for the regex encoder
+        # encoder_weights_path = '/home/dvidal/STEP/Checkpoints/1.6M_L10_AdamW_encoder_only_best_model_96_lr_0.0001_20241108-205130.pth' # wieghts with 512 dim
+        encoder_weights_path = '/home/dvidal/STEP/Checkpoints/1.6M_L10_AdamW_encoder_only_best_model_94_lr_0.0001_20250223-020448.pth'# weights with 256 dim
+        self.query_embed.load_state_dict(torch.load(encoder_weights_path), strict=False)
+        print("Regex encoder loaded without pretrained weights")
+
+        # Define a linear layer to project the regex encoder output to the transformer input size [from 512 to 256]
+        if self.encoder_dim != self.d_model:
+            self.query_reprojection = nn.Linear(512, self.d_model)
+
+        # if self.encoder_weights:
+        #     self.query_embed.load_state_dict(torch.load(self.encoder_weights))
+
+        #self.query_reprojection = nn.Linear(self.d_model, self.d_model)
 
         # shared prior between instances (objects)
         self.ctrl_point_embed = nn.Embedding(self.num_ctrl_points, self.d_model)
@@ -186,12 +280,24 @@ class STEP(nn.Module):
 
         # n_points, embed_dim --> n_objects, n_points, embed_dim
         ctrl_point_embed = self.ctrl_point_embed.weight[None, ...].repeat(self.num_proposals, 1, 1)
+        
         text_pos_embed = self.text_pos_embed(self.text_embed.weight)[None, ...].repeat(self.num_proposals, 1, 1)
         text_embed = self.text_embed.weight[None, ...].repeat(self.num_proposals, 1, 1)
 
         # embed queries
-        queries = self.query_embed(torch.stack(x[1])).repeat(1, self.num_proposals, 1, 1)
-        query_pos_embed = self.query_pos_embed(queries[0, 0]).unsqueeze(0).repeat(queries.shape[0], self.num_proposals, 1, 1)
+        # pdb.set_trace()
+
+        # Reshape input to be [seq_len, batch_size]
+        # x[1] = x[1].squeeze(0).transpose(0, 1)
+        if type(x[1]) == list:
+            x = (x[0], x[1][0])
+        x[1].to(self.device)
+        queries = self.query_embed(x[1].squeeze(1).transpose(0, 1).long().to(self.device))
+        if self.encoder_dim != self.d_model:
+            queries = self.query_reprojection(queries)
+        queries = queries.transpose(0, 1)
+        queries = queries.unsqueeze(1).repeat(1, self.num_proposals, 1, 1)
+        query_pos_embed = None #self.query_pos_embed(queries[0, 0]).unsqueeze(0).repeat(queries.shape[0], self.num_proposals, 1, 1)
 
         hs, hs_text, init_reference, inter_references, enc_outputs_class, enc_outputs_coord_unact = self.transformer(
             srcs, masks, pos, ctrl_point_embed, text_embed, text_pos_embed, queries, query_pos_embed, text_mask=None)
